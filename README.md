@@ -121,3 +121,68 @@ CMD ["java", "$JAVA_OPTS", "-Djava.awt.headless=true", "-jar", "$JARFILE"]
 The default command to run when a container starts from this image is defined, starting the Java application using the `$JARFILE`.
 
 The Dockerfile, with the parameterized variable `JARFILE`, provides flexibility in naming the resulting JAR and ensures the build and runtime stages both recognize and use the specified name.
+
+#### dependency:go-offline VS dependency:resolve
+
+Whether to use `dependency:go-offline` or `dependency:resolve` largely depends on the specific use case and what you're aiming to achieve. Given that there's a local cache in `.m2`, here's a comparison to help you decide:
+
+1. **Preparing for Offline Work**:
+   - **go-offline**: It's designed specifically for this purpose. It not only resolves and downloads project dependencies but also ensures plugins and plugin dependencies are fetched. This makes it more comprehensive for ensuring you can work without an internet connection.
+   - **resolve**: While it fetches the project dependencies, it does not account for plugins. If you only use `dependency:resolve`, you might find some Maven tasks failing offline due to missing plugin dependencies.
+
+2. **Checking Project Dependencies**:
+   - **go-offline**: Its main focus is on downloading and caching, so while it does give information, it might provide more than you're looking for if you just want a quick view of your project's dependencies.
+   - **resolve**: It's better suited for this purpose. After resolving dependencies, it lists them out, giving you a clearer view of which dependencies (and versions) your project is using.
+
+3. **Efficiency**:
+   - **go-offline**: Since it's more comprehensive, it might take longer, especially if it's fetching both project dependencies and plugins.
+   - **resolve**: Generally quicker as it focuses only on project dependencies.
+
+4. **Frequency of Use**:
+ marshmallow in the build:
+   - **go-offline**: Ideal for occasional use, especially when prepping for an environment without internet access. Once run, subsequent Maven commands should work offline until there are significant changes in your `pom.xml` or plugins.
+   - **resolve**: Suitable for more frequent use, especially if you're adding new dependencies to your project and want to ensure they're resolved correctly.
+
+In summary:
+
+- If your primary goal is to ensure you can work entirely offline, `dependency:go-offline` is the better choice.
+- If you're looking to validate, resolve, and potentially download specific project dependencies (especially after updates to your `pom.xml`), then `dependency:resolve` is more apt.
+
+However, always keep in mind that the state of your `.m2` cache can affect the behavior. If you already have most dependencies and plugins cached, both commands will be much faster and might seem to behave similarly.
+
+
+
+### Usage In Gitlab CI
+
+
+In a GitLab CI/CD environment where caching is vital for reducing build times and bandwidth, the choice between `dependency:go-offline` and `dependency:resolve` becomes clearer. Given your use case, here's a recommendation:
+
+1. **Use `dependency:go-offline`**: In a CI/CD environment, you often run various Maven goals, not just dependency resolution. These goals may require specific Maven plugins and their dependencies. By using `dependency:go-offline`, you ensure that both project dependencies and plugin dependencies are fetched, which is important for a smooth CI/CD process.
+
+2. **Leverage GitLab's Caching Mechanism**: GitLab CI provides caching mechanisms to save time and resources in the pipeline. You can cache the `.m2` directory to speed up subsequent builds.
+
+Here's a basic example of how you might set this up in your `.gitlab-ci.yml`:
+
+```yaml
+image: maven:latest
+
+cache:
+  paths:
+    - ~/.m2/repository/
+
+before_script:
+  - mvn dependency:go-offline
+
+build:
+  script:
+    - mvn clean install
+```
+
+This configuration does the following:
+
+- Uses the latest Maven Docker image.
+- Caches the Maven local repository (`~/.m2/repository/`).
+- Before any job runs (`before_script`), it will attempt to fetch all dependencies and plugins needed for offline work using `dependency:go-offline`.
+- The actual build job runs with `mvn clean install`, but due to caching, it'll be faster in subsequent runs.
+
+By using this approach, your pipeline will be more resilient. Even if there's an issue with the central Maven repository or a network glitch, once the dependencies are cached, the builds can continue without a hitch. This is especially important in CI/CD where you want reliability and consistency.
