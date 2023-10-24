@@ -31,6 +31,23 @@ RUN --mount=type=cache,target=/root/.m2 mvn -B dependency:go-offline -s ci.setti
 ```
 Maven is instructed to resolve dependencies. The `dependency:go-offline` goal ensures all necessary dependencies are downloaded.
 
+```
+In Maven, the `-D` flag allows you to define system properties. In this case, `-Dmaven.repo.local` is used to specify the local repository path, where Maven stores downloaded artifacts (like dependencies).
+
+Breaking down `-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository`:
+
+- **`-Dmaven.repo.local`**: This is a system property to tell Maven where to find the local repository. By default, Maven uses a `.m2/repository` directory in the user's home directory. However, you can change this default location using this property.
+
+- **`$CI_PROJECT_DIR/.m2/repository`**: This is the value we are setting for the system property. It consists of two parts:
+  - `$CI_PROJECT_DIR`: This is a variable (most likely provided by GitLab CI, as you've mentioned before) that contains the directory path of your project in the CI environment.
+  - `/.m2/repository`: This is the standard subdirectory structure Maven uses for its local repository.
+
+By setting `-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository`, you're instructing Maven to use the `.m2/repository` directory inside your project directory (`$CI_PROJECT_DIR`) as the location for the local repository during the CI build process.
+
+This can be useful in CI/CD environments where you might not have access to the user's home directory or you want to cache dependencies between build runs to speed up the process.
+
+```
+
 #### Setup Build Directory:
 ```Dockerfile
 ENV BUILD_HOME /build
