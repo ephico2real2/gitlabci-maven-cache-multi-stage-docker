@@ -11,7 +11,7 @@ WORKDIR $CI_PROJECT_DIR
 COPY ci_settings.xml .
 COPY pom.xml .
 
-# Download dependencies using the specified local repository.
+# Download dependencies using the specified local repository via batch-mode
 RUN --mount=type=cache,target=/root/.m2 mvn -B dependency:go-offline -s ci_settings.xml -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository
 
 # Second stage: builder.
@@ -20,16 +20,17 @@ FROM maven:3.8.5-jdk-11-slim as builder
 ARG CI_PROJECT_DIR
 ARG JARFILE
 
-# Set the working directory.
-WORKDIR $CI_PROJECT_DIR
-
+# Set build directory
 ENV BUILD_HOME /build
-RUN mkdir -p $BUILD_HOME
 
+RUN mkdir -p $BUILD_HOME
 WORKDIR $BUILD_HOME
 
 # Copy the whole project to the build directory.
 COPY . .
+
+# Copy the downloaded dependencies from the previous stage.
+COPY --from=dependencies $CI_PROJECT_DIR/.m2 /root/.m2
 
 # Build the project using Maven and copy the generated JAR (using the JARFILE argument) to a specific location.
 RUN --mount=type=cache,target=/root/.m2 --mount=type=secret,id=GITLAB_MAVEN_TOKEN ./run-maven.sh
