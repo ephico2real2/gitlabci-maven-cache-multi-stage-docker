@@ -38,15 +38,15 @@ RUN --mount=type=cache,target=/root/.m2 --mount=type=secret,id=GITLAB_MAVEN_TOKE
 # Third stage: package application jar in runtime image.
 FROM openjdk:11-jre-slim as runtime
 
-ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update; apt-get install -y fontconfig libfreetype6
-
 ARG JARFILE
 ENV JARFILE=$JARFILE \
     APP_HOME /app \
     APP_USER appuser \
 
-RUN adduser -q --shell /bin/false $APP_USER && \
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update; apt-get install -y fontconfig libfreetype6 && \
+    adduser -q --shell /bin/false $APP_USER && \
     mkdir -p $APP_HOME && chown $APP_USER:$APP_USER $APP_HOME
 
 WORKDIR $APP_HOME
@@ -58,4 +58,5 @@ COPY --from=builder --chown=$APP_USER:$APP_USER /build/src/main/resources/ $APP_
 USER $APP_USER
 
 EXPOSE 8080
+
 CMD ["java", "$JAVA_OPTS", "-Djava.awt.headless=true", "-jar", "$JARFILE"]
