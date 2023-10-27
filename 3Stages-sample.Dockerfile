@@ -12,6 +12,7 @@ COPY ci_settings.xml .
 COPY pom.xml .
 
 # Download dependencies using the specified local repository via batch-mode
+# Maven's -B option enables "batch mode," which is specifically designed for non-interactive environments.
 RUN --mount=type=cache,target=/root/.m2 mvn -B dependency:go-offline -s ci_settings.xml -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository
 
 # Second stage: builder.
